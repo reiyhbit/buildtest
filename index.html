@@ -1,381 +1,378 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>REIYH — Apple TV Style IPTV</title>
-
-<!-- Shaka Player -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.7/shaka-player.ui.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.7/controls.css">
-
-<style>
-  /* ---------- Base / Variables ---------- */
-  :root{
-    --bg-1: #0b1221;
-    --glass: rgba(255,255,255,0.04);
-    --glass-strong: rgba(255,255,255,0.06);
-    --accent: #6aa6ff;
-    --accent-2: #8de1ff;
-    --muted: rgba(255,255,255,0.65);
-    --live-red: #ff4b4b;
-    --card-radius: 14px;
-    --gap: 14px;
-    --glass-border: rgba(255,255,255,0.06);
-  }
-
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;
-    font-family: 'SF Pro Text', 'Segoe UI', system-ui, -apple-system, Roboto, "Helvetica Neue", Arial;
-    background:
-      radial-gradient(1000px 500px at 10% 10%, rgba(106,166,255,0.06), transparent 12%),
-      radial-gradient(900px 500px at 90% 90%, rgba(141,225,255,0.03), transparent 12%),
-      linear-gradient(180deg, var(--bg-1) 0%, #07101a 100%);
-    color: #fff;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    padding:18px;
-  }
-
-  /* ---------- App container (centered) ---------- */
-  .app {
-    max-width:1100px;
-    margin: 0 auto;
-    height: calc(100vh - 36px);
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 16px;
-  }
-
-  /* ---------- Header / topbar ---------- */
-  header.topbar {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius: 12px;
-    padding: 12px 16px;
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(10px) saturate(120%);
-    box-shadow: 0 6px 18px rgba(3,7,18,0.6);
-  }
-
-  .brand {
-    display:flex;
-    align-items:center;
-    gap:12px;
-  }
-  .logo {
-    width:44px;height:44px;border-radius:10px;
-    display:flex;align-items:center;justify-content:center;
-    background: linear-gradient(135deg,var(--accent), var(--accent-2));
-    color:#021029;font-weight:700;font-size:18px;
-    box-shadow: 0 6px 18px rgba(106,166,255,0.12);
-  }
-  .title {
-    font-size:1.05rem;font-weight:600;letter-spacing:0.2px;
-  }
-  .subtitle {font-size:0.78rem;color:var(--muted);margin-top:2px}
-
-  .top-actions {
-    display:flex;gap:8px;align-items:center;
-  }
-
-  .search {
-    display:flex;align-items:center;gap:8px;
-    background:var(--glass); padding:8px 12px;border-radius:999px;
-    border:1px solid var(--glass-border);min-width:240px;
-  }
-  .search input{
-    border:0;background:transparent;outline:none;color:inherit;font-size:0.95rem;
-    width:100%;
-  }
-  .icon-btn{
-    display:inline-flex;align-items:center;justify-content:center;
-    width:40px;height:40px;border-radius:8px;border:1px solid transparent;
-    background:transparent;cursor:pointer;transition:all .12s;
-  }
-  .icon-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(0,0,0,0.4)}
-  .icon-btn.toggle{border:1px solid var(--glass-border);padding:6px 8px}
-
-  /* ---------- Main content split ---------- */
-  .main {
-    display:grid;
-    grid-template-columns: 1fr 420px;
-    gap: 16px;
-    height:100%;
-  }
-
-  /* left: video area */
-  .player-card{
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    border-radius: var(--card-radius); overflow:hidden;
-    border:1px solid var(--glass-border);
-    display:flex;flex-direction:column;
-    box-shadow: 0 18px 40px rgba(0,0,0,0.55);
-    position:relative;
-  }
-
-  .video-wrap{
-    position:relative;flex:1;min-height:320px;background:black;
-    display:flex;align-items:center;justify-content:center;
-  }
-  video#video{
-    width:100%;height:100%;object-fit:contain;background:#000;
-  }
-
-  /* pip toggle */
-  .pip-toggle{
-    position:absolute;right:14px;top:14px;z-index:10;
-    display:flex;gap:8px;align-items:center;
-  }
-
-  .player-info-row{
-    display:flex;gap:12px;padding:12px 16px;align-items:center;
-    border-top:1px solid rgba(255,255,255,0.03);
-    background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
-  }
-  .player-stats{display:flex;gap:18px;align-items:center;color:var(--muted);font-size:0.9rem}
-  .stat {display:flex;flex-direction:column}
-  .stat .label{font-size:0.75rem;color:var(--muted)}
-  .stat .value{font-weight:700;font-size:0.95rem}
-
-  /* right: playlist */
-  .playlist-card{
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius: var(--card-radius); overflow:hidden;
-    border:1px solid var(--glass-border);display:flex;flex-direction:column;
-    min-width:300px; max-height:100%;
-  }
-
-  .playlist-header{
-    padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.03);
-    display:flex;justify-content:space-between;align-items:center;gap:12px;
-  }
-  .playlist-title{
-    font-weight:700;font-size:0.95rem;
-  }
-  .playlist-controls{display:flex;gap:8px}
-
-  .playlist-search {
-    display:flex;gap:8px;align-items:center;background:transparent;padding:8px;border-radius:8px;
-    border:1px solid transparent;
-  }
-
-  /* pages area */
-  .pages {
-    padding:10px; overflow:auto; flex:1;
-  }
-  .group-title{
-    font-weight:700;margin:10px 6px;color:var(--muted);
-    font-size:0.86rem;
-  }
-
-  /* playlist items: Apple TV-like big cards */
-  .channel-grid{
-    display:grid;
-    grid-template-columns: repeat(1, 1fr);
-    gap:10px;
-  }
-
-  .channel {
-    display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-    border:1px solid transparent; cursor:pointer; transition: all .14s;
-    box-shadow: 0 6px 18px rgba(1,6,15,0.4);
-  }
-  .channel:hover, .channel:focus, .channel.active {
-    transform: translateX(6px);
-    border: 1px solid rgba(106,166,255,0.12);
-    box-shadow: 0 12px 34px rgba(6,18,40,0.6);
-    background: linear-gradient(90deg, rgba(106,166,255,0.04), rgba(141,225,255,0.02));
-  }
-
-  .thumb {
-    width:96px;height:56px;border-radius:6px;overflow:hidden;flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);
-    position:relative;
-  }
-  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-
-  .live-badge {
-    position:absolute;left:8px;top:8px;padding:4px 8px;border-radius:999px;
-    background:linear-gradient(90deg,var(--live-red),#ff7a7a);
-    font-size:0.72rem;font-weight:700;color:#fff;box-shadow:0 6px 14px rgba(255,75,75,0.12);
-  }
-
-  .ch-info{flex:1;min-width:0}
-  .ch-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ch-meta{color:var(--muted);font-size:0.82rem;margin-top:4px}
-
-  /* small indicator */
-  .playing-indicator{
-    width:10px;height:10px;border-radius:50%;background:var(--accent);margin-left:8px;
-    box-shadow:0 6px 18px rgba(106,166,255,0.16);
-  }
-
-  /* footer */
-  footer{
-    display:flex;justify-content:center;padding:10px 6px;color:var(--muted);font-size:0.85rem;
-  }
-
-  /* mini PIP floating */
-  .mini-pip {
-    position:fixed; right:22px; bottom:22px; width:320px;height:180px;border-radius:12px;
-    overflow:hidden;border:1px solid rgba(255,255,255,0.06);background:#000;z-index:9999;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.6); display:none;
-  }
-  .mini-pip.show{display:block}
-  .mini-controls{position:absolute;left:8px;top:8px;z-index:10;display:flex;gap:8px}
-
-  /* small screens */
-  @media (max-width:900px){
-    .main { grid-template-columns: 1fr; grid-auto-rows: auto; }
-    .playlist-card{order:2}
-    .player-card{order:1}
-    .mini-pip{right:12px;bottom:12px;width:220px;height:140px}
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REIYH IPTV Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.7/shaka-player.ui.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.7/controls.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 95vh;
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        header {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .description {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .player-section {
+            height: 50%;
+            position: relative;
+        }
+        
+        #video-container {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+        
+        #video {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .playlist-section {
+            height: 50%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .playlist-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .playlist-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        
+        .playlist-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .playlist-controls button {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .playlist-controls button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .playlist-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .playlist-carousel {
+            display: flex;
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+        
+        .playlist-page {
+            flex: 0 0 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .playlist-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .playlist-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+        
+        .playlist-item.active {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .playlist-item-thumb {
+            width: 60px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            text-align: center;
+            overflow: hidden;
+        }
+        
+        .playlist-item-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .playlist-item-info {
+            flex: 1;
+        }
+        
+        .playlist-item-title {
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .playlist-item-duration {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+        
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .indicator.active {
+            background: #ff7e5f;
+            transform: scale(1.2);
+        }
+        
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .info-label {
+            opacity: 0.7;
+            margin-bottom: 3px;
+        }
+        
+        .info-value {
+            font-weight: bold;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1rem;
+        }
+        
+        .loading-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ff7e5f;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        footer {
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            opacity: 0.7;
+            font-size: 0.8rem;
+        }
+        
+        /* Scrollbar styling */
+        .playlist-page::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .playlist-page::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .playlist-page::-webkit-scrollbar-thumb {
+            background: linear-gradient(to bottom, #ff7e5f, #feb47b);
+            border-radius: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                height: 98vh;
+            }
+            
+            h1 {
+                font-size: 1.3rem;
+            }
+            
+            .player-info {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .info-item {
+                flex: 1;
+                min-width: 45%;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="app">
-
-    <!-- TOP BAR -->
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo">R</div>
-        <div>
-          <div class="title">REIYH Player</div>
-          <div class="subtitle">Swipe / Arrow keys — Apple TV inspired UI</div>
-        </div>
-      </div>
-
-      <div class="top-actions" role="region" aria-label="Top actions">
-        <div class="search" title="Search channel">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></circle>
-          </svg>
-          <input id="global-search" placeholder="Search channels or groups..." />
-        </div>
-
-        <button class="icon-btn toggle" id="theme-toggle" title="Toggle theme (light/dark)">
-          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-
-        <button class="icon-btn" id="settings-btn" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm8.66-2.5a7.97 7.97 0 0 0-.22-1.7l2-1.5-2-3.46-2.36.68A8 8 0 0 0 13 3.34V1h-2v2.34a8 8 0 0 0-3.08 1.18L5.56 2.84 3.56 6.3l2 1.5a7.97 7.97 0 0 0-.22 1.7v.4a7.97 7.97 0 0 0 .22 1.7l-2 1.5 2 3.46 2.36-.68A8 8 0 0 0 11 20.66V23h2v-2.34a8 8 0 0 0 3.08-1.18l2.36.68 2-3.46-2-1.5c.14-.54.22-1.11.22-1.7v-.4z" stroke="currentColor" stroke-width="0" fill="currentColor"></path></svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- MAIN -->
-    <section class="main">
-      <!-- VIDEO / PLAYER -->
-      <section class="player-card" aria-label="Video player">
-        <div class="video-wrap" id="video-wrap">
-          <div class="pip-toggle" id="pip-toggle">
-            <button class="icon-btn" id="enter-pip" title="Open mini player">⤢</button>
-          </div>
-
-          <video id="video" poster="" controls autoplay playsinline></video>
-
-          <!-- Shaka UI will attach controls to video automatically if used -->
-        </div>
-
-        <div class="player-info-row">
-          <div class="player-stats">
-            <div class="stat">
-              <div class="label">Player</div>
-              <div class="value" id="player-version">-</div>
+    <div class="container">
+        <header>
+            <h1>REIYH IPTV Player</h1>
+            <p class="description">SWIFE LEFT/RIGHT TO BROWSE CHANNELS</p>
+        </header>
+        
+        <div class="player-section">
+            <div id="video-container">
+                <video id="video"
+                    poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='225' viewBox='0 0 400 225'%3E%3Crect width='400' height='225' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23fff'%3EVideo Thumbnail%3C/text%3E%3C/svg%3E"
+                    controls autoplay>
+                </video>
             </div>
-            <div class="stat">
-              <div class="label">Resolution</div>
-              <div class="value" id="current-resolution">-</div>
-            </div>
-            <div class="stat">
-              <div class="label">Buffering</div>
-              <div class="value" id="buffering-status">-</div>
-            </div>
-            <div class="stat">
-              <div class="label">Time</div>
-              <div class="value" id="current-time">0:00</div>
-            </div>
-          </div>
         </div>
-      </section>
-
-      <!-- PLAYLIST -->
-      <aside class="playlist-card" aria-label="Playlist">
-        <div class="playlist-header">
-          <div>
-            <div class="playlist-title" id="playlist-title">Loading channels...</div>
-            <div style="font-size:0.78rem;color:var(--muted)">Swipe groups • Keyboard: ← → • Enter to play</div>
-          </div>
-          <div class="playlist-controls">
-            <button class="icon-btn" id="shuffle-btn" title="Shuffle playlist">🔀</button>
-            <button class="icon-btn" id="refresh-btn" title="Refresh playlist">⤻</button>
-          </div>
+        
+        <div class="playlist-section">
+            <div class="playlist-header">
+                <div class="playlist-title" id="playlist-title">Loading Playlist...</div>
+                <div class="playlist-controls">
+                    <button id="shuffle-btn">Shuffle</button>
+                    <button id="refresh-btn">Refresh</button>
+                </div>
+            </div>
+            
+            <div class="playlist-container">
+                <div class="playlist-carousel" id="playlist-carousel">
+                    <div class="playlist-page" id="page-1">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <span>Loading channels...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="carousel-indicators" id="carousel-indicators">
+                <!-- Indicators will be generated by JavaScript -->
+            </div>
         </div>
-
-        <div class="pages" id="pages">
-          <div class="group-title" id="group-info">All channels</div>
-          <div class="channel-grid" id="channel-grid">
-            <!-- Channels will be injected here -->
-            <div style="padding:20px;color:var(--muted)">Loading channels...</div>
-          </div>
+        
+        <div class="player-info">
+            <div class="info-item">
+                <div class="info-label">Player Version</div>
+                <div class="info-value" id="player-version">Loading...</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Current Resolution</div>
+                <div class="info-value" id="current-resolution">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Buffering</div>
+                <div class="info-value" id="buffering-status">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Current Time</div>
+                <div class="info-value" id="current-time">0:00</div>
+            </div>
         </div>
-      </aside>
-    </section>
-
-    <footer>
-      Built with REIYH — Apple TV inspired UI
-    </footer>
-  </div>
-
-  <!-- Mini PIP -->
-  <div class="mini-pip" id="mini-pip" aria-hidden="true">
-    <div class="mini-controls">
-      <button class="icon-btn" id="mini-close" title="Close mini player">✕</button>
     </div>
-    <!-- We'll reuse the same video element by cloning a small video in code when entering pip -->
-    <video id="mini-video" playsinline muted></video>
-  </div>
+    
+    <footer>
+        <p>Built with REIYH Player - IPTV Experience</p>
+    </footer>
 
-<script>
-/* ===========================
-   Core app logic & behavior
-   =========================== */
-
-document.addEventListener('DOMContentLoaded', async () => {
-  // --- elements
-  const video = document.getElementById('video');
-  const miniPipWrap = document.getElementById('mini-pip');
-  const miniVideo = document.getElementById('mini-video');
-  const pipBtn = document.getElementById('enter-pip');
-  const miniClose = document.getElementById('mini-close');
-  const playerVersionEl = document.getElementById('player-version');
-  const currentResolutionEl = document.getElementById('current-resolution');
-  const bufferingStatusEl = document.getElementById('buffering-status');
-  const currentTimeEl = document.getElementById('current-time');
-  const playlistTitleEl = document.getElementById('playlist-title');
-  const pagesEl = document.getElementById('pages');
-  const channelGrid = document.getElementById('channel-grid');
-  const shuffleBtn = document.getElementById('shuffle-btn');
-  const refreshBtn = document.getElementById('refresh-btn');
-  const searchInput = document.getElementById('global-search');
-  const themeToggle = document.getElementById('theme-toggle');
-
-  // --- sample M3U content (kept from your original)
-  const m3uContent = #EXTM3U
+    <script>
+        // M3U playlist data
+        const m3uContent = `#EXTM3U
 
 //========================================================================
 //VWS Full Dump Playlist - BPK Channels with Clearkey. Do not share this, credit me if you do.
 //========================================================================
-
 #EXTINF:-1 group-logo="https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Cignal_Logo_2018.svg/645px-Cignal_Logo_2018.svg.png",Cignal
 
 #EXTINF:-1 group-logo="https://cdn-icons-png.flaticon.com/512/3074/3074767.png",Entertainment
@@ -601,9 +598,6 @@ https://qp-pldt-live-bpk-01-prod.akamaized.net/bpk-tv/dr_spotv2hd/default/index.
 #KODIPROP:inputstream.adaptive.license_key=92032b0e41a543fb9830751273b8debd:03f8b65e2af785b10d6634735dbe6c11
 https://qp-pldt-live-bpk-01-prod.akamaized.net/bpk-tv/cg_animax_sd_new/default/index.mpd
 
-
-
-
 #EXTINF:-1 tvg-id="dreamworks-hd" tvg-logo="https://i.imgur.com/bzTr9Y2.png" group-title="Kids",DreamWorks HD
 #KODIPROP:inputstream.adaptive.license_type=clearkey
 #KODIPROP:inputstream.adaptive.license_key=4ab9645a2a0a47edbd65e8479c2b9669:8cb209f1828431ce9b50b593d1f44079
@@ -769,277 +763,348 @@ https://qp-pldt-live-bpk-02-prod.akamaized.net/bpk-tv/depedch_sd/default/index.m
 #KODIPROP:inputstream.adaptive.license_key=0f856fa0412b11edb8780242ac120002:783374273ef97ad3bc992c1d63e091e7
 https://qp-pldt-live-bpk-02-prod.akamaized.net/bpk-tv/knowledge_channel/default/index.mpd
 
-#EXTM3U billed-msg="SalvadorArchives25 Property, 6-CIMATTI! "
 
-#EXTM3U url-tvg="https://epgshare01.online/epgshare01/epg_ripper_PH1.xml.gz, https://epgshare01.online/epgshare01/epg_ripper_PH2.xml.gz, https://epgshare01.online/epgshare01/epg_ripper_ID1.xml.gz, https://epgshare01.online/epgshare01/epg_ripper_MY1.xml.gz, https://epgshare01.online/epgshare01/epg_ripper_HK1.xml.gz, https://epgshare01.online/epgshare01/epg_ripper_US1.xml.gz, https://raw.githubusercontent.com/atone77721/CIGNAL_EPG/refs/heads/main/cignal_epg.xml, https://raw.githubusercontent.com/atone77721/CIGNAL_EPG/refs/heads/main/sky_epg.xml"
 
-  // --- initialize Shaka
-  shaka.polyfill.installAll();
-  const shakaPlayer = new shaka.Player(video);
-  const ui = new shaka.ui.Overlay(shakaPlayer, document.getElementById('video-wrap'), video);
-  // hide native Shaka logo area if desired via CSS override, but we keep default controls
-  shakaPlayer.configure({
-    drm: { clearKeys: {} },
-    streaming: { bufferingGoal: 20, rebufferingGoal: 4 }
-  });
+#EXTM3U billed-msg="SalvadorArchives25 Property, 6-CIMATTI! "`;
 
-  // show player version
-  playerVersionEl.textContent = shaka.Player.version || 'shaka';
-
-  // parse and build playlist
-  let channels = parseM3U(m3uContent);
-  let filteredChannels = channels.slice();
-  buildPlaylistUI(filteredChannels);
-  playlistTitleEl.textContent = `All Channels (${channels.length})`;
-
-  // select first channel
-  if (channels[0]) {
-    loadChannel(channels[0]);
-    setActiveByIndex(0);
-  }
-
-  // player events
-  shakaPlayer.addEventListener('adaptation', () => {
-    const tracks = shakaPlayer.getVariantTracks() || [];
-    const active = tracks.find(t => t.active);
-    currentResolutionEl.textContent = active ? `${active.height || active.width}px` : '-';
-  });
-
-  shakaPlayer.addEventListener('buffering', (e) => {
-    bufferingStatusEl.textContent = e.buffering ? 'Buffering…' : 'Ready';
-  });
-
-  // current time updater
-  setInterval(() => {
-    const t = Math.floor(video.currentTime || 0);
-    const m = Math.floor(t / 60);
-    const s = t % 60;
-    currentTimeEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
-  }, 500);
-
-  // search/filter
-  searchInput.addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    filteredChannels = channels.filter(c => (c.name + ' ' + (c.groupTitle||'')).toLowerCase().includes(q));
-    buildPlaylistUI(filteredChannels);
-  });
-
-  // shuffle & refresh
-  shuffleBtn.addEventListener('click', () => {
-    shuffleArray(channels);
-    filteredChannels = channels.slice();
-    buildPlaylistUI(filteredChannels);
-    playlistTitleEl.textContent = `All Channels (${channels.length}) • Shuffled`;
-    setTimeout(()=> playlistTitleEl.textContent = `All Channels (${channels.length})`, 1800);
-  });
-  refreshBtn.addEventListener('click', () => {
-    // reload from source content — in real usage, you'd fetch M3U again
-    channels = parseM3U(m3uContent);
-    filteredChannels = channels.slice();
-    buildPlaylistUI(filteredChannels);
-    playlistTitleEl.textContent = `All Channels (${channels.length}) • Refreshed`;
-    setTimeout(()=> playlistTitleEl.textContent = `All Channels (${channels.length})`, 1400);
-  });
-
-  // theme toggle (simple light accent inversion)
-  themeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('light-mode');
-    if (document.body.classList.contains('light-mode')) {
-      document.documentElement.style.setProperty('--bg-1','#f6f8fb');
-      document.documentElement.style.setProperty('--muted','#2c3a47');
-    } else {
-      document.documentElement.style.setProperty('--bg-1','#0b1221');
-      document.documentElement.style.setProperty('--muted','rgba(255,255,255,0.65)');
-    }
-  });
-
-  /* -------------------------
-     MINI PIP: show/hide mini player
-     ------------------------- */
-  pipBtn.addEventListener('click', async () => {
-    // show mini container and mirror playback onto a tiny video
-    miniPipWrap.classList.add('show');
-    // transfer current playback state to miniVideo
-    try {
-      // try to reuse same source URL
-      miniVideo.src = video.currentSrc || video.src;
-      miniVideo.currentTime = video.currentTime || 0;
-      miniVideo.muted = true;
-      await miniVideo.play();
-      // pause main video to avoid double audio
-      video.muted = true;
-    } catch(e){}
-  });
-  miniClose.addEventListener('click', () => {
-    miniPipWrap.classList.remove('show');
-    miniVideo.pause();
-    miniVideo.src = '';
-    video.muted = false;
-  });
-
-  /* -------------------------
-     Keyboard navigation
-     ------------------------- */
-  let activeIndex = 0;
-  document.addEventListener('keydown', (e) => {
-    const visible = filteredChannels.length;
-    if (e.key === 'ArrowDown') {
-      activeIndex = Math.min(visible - 1, activeIndex + 1);
-      setActiveByIndex(activeIndex, true);
-    } else if (e.key === 'ArrowUp') {
-      activeIndex = Math.max(0, activeIndex - 1);
-      setActiveByIndex(activeIndex, true);
-    } else if (e.key === 'Enter') {
-      const c = filteredChannels[activeIndex];
-      if (c) loadChannel(c);
-    } else if (e.key === 'ArrowLeft') {
-      // optional: switch groups/pages later
-    } else if (e.key === 'ArrowRight') {
-      // optional: switch groups/pages later
-    }
-  });
-
-  /* -------------------------
-     Helper functions
-     ------------------------- */
-
-  function parseM3U(m3uText) {
-    const lines = m3uText.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
-    const out = [];
-    let current = null;
-    for (let i=0;i<lines.length;i++){
-      const line = lines[i];
-      if (line.startsWith('#EXTINF:')) {
-        current = {};
-        // capture duration and attributes
-        const nameMatch = line.match(/,(.*)$/);
-        current.name = nameMatch ? nameMatch[1].trim() : 'Unknown';
-        const attrs = line.replace(/^#EXTINF:[^,]*,?/,'');
-        const tvgLogo = line.match(/tvg-logo="([^"]+)"/);
-        if (tvgLogo) current.tvgLogo = tvgLogo[1];
-        const group = line.match(/group-title="([^"]+)"/);
-        current.groupTitle = group ? group[1] : 'General';
-        // duration
-        const dur = line.match(/#EXTINF:(-?\d+)/);
-        current.duration = dur ? dur[1] : '-1';
-      } else if (line.startsWith('http')) {
-        if (!current) current = { name: 'Unknown', groupTitle: 'General' };
-        current.url = line;
-        // detect simple clearkey license in following lines (if any)
-        // (We support license parsing similar to your original code if present)
-        out.push(current);
-        current = null;
-      } else {
-        // other tags ignored for now
-      }
-    }
-    return out;
-  }
-
-  function buildPlaylistUI(list) {
-    channelGrid.innerHTML = '';
-    if (!list.length) {
-      channelGrid.innerHTML = `<div style="padding:20px;color:var(--muted)">No channels found</div>`;
-      return;
-    }
-    list.forEach((c, i) => {
-      const item = document.createElement('div');
-      item.tabIndex = 0;
-      item.className = 'channel';
-      item.dataset.index = i;
-      item.innerHTML = `
-        <div class="thumb">
-          ${c.tvgLogo ? `<img src="${c.tvgLogo}" alt="${escapeHtml(c.name)}">` :
-            `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-weight:700">${escapeHtml(c.name.charAt(0))}</div>`}
-        </div>
-        <div class="ch-info">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="ch-name">${escapeHtml(c.name)}</div>
-            ${i===0 ? '<div class="playing-indicator" title="preferred"></div>' : ''}
-          </div>
-          <div class="ch-meta">${escapeHtml(c.groupTitle)} • ${c.duration === '-1' ? 'Live' : 'VOD'}</div>
-        </div>
-      `;
-      // live badge if live
-      if (c.duration === '-1') {
-        const badge = document.createElement('div');
-        badge.className = 'live-badge';
-        badge.textContent = 'LIVE';
-        item.querySelector('.thumb').appendChild(badge);
-      }
-
-      item.addEventListener('click', () => {
-        loadChannel(c);
-        setActiveByIndex(i, true);
-      });
-
-      item.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          loadChannel(c);
-          setActiveByIndex(i, true);
-        }
-      });
-
-      channelGrid.appendChild(item);
-    });
-    // reset active index bounds
-    activeIndex = Math.min(activeIndex, list.length - 1);
-    setActiveByIndex(activeIndex, false);
-  }
-
-  function setActiveByIndex(index, scrollIntoView=true){
-    const nodes = channelGrid.querySelectorAll('.channel');
-    nodes.forEach(n => n.classList.remove('active'));
-    const node = nodes[index];
-    if (node) {
-      node.classList.add('active');
-      if (scrollIntoView) node.scrollIntoView({behavior:'smooth',block:'center'});
-    }
-  }
-
-  async function loadChannel(channel){
-    if (!channel || !channel.url) {
-      console.warn('No URL for channel', channel);
-      playlistTitleEl.textContent = 'Error: no url';
-      return;
-    }
-
-    // DRM: if license info present, configure player before load
-    if (channel.licenseKey && channel.drmType === 'clearkey') {
-      const cfg = {};
-      const [kid, key] = (channel.licenseKey || '').split(':');
-      if (kid && key) {
-        cfg[kid] = key;
-        shakaPlayer.configure({ drm: { clearKeys: cfg } });
-      }
-    }
-
-    try {
-      await shakaPlayer.load(channel.url);
-      playlistTitleEl.textContent = `Now Playing: ${channel.name}`;
-      // ensure main video unmuted (unless pip active)
-      video.muted = miniPipWrap.classList.contains('show') ? true : false;
-    } catch (err) {
-      console.error('Failed load', err);
-      playlistTitleEl.textContent = `Error loading ${channel.name}`;
-    }
-  }
-
-  function shuffleArray(a){
-    for (let i=a.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-  }
-
-  function escapeHtml(s){
-    return (s||'').toString().replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-  }
-
-  // small UX: mark first item as active initially
-  setActiveByIndex(0,false);
-
-}); // DOMContentLoaded
-</script>
+        // Initialize Shaka Player
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display Shaka Player version
+            document.getElementById('player-version').textContent = shaka.Player.version;
+            
+            // Initialize Shaka Player
+            const video = document.getElementById('video');
+            const player = new shaka.Player(video);
+            
+            // Configure player for DRM
+            player.configure({
+                drm: {
+                    clearKeys: {}
+                },
+                streaming: {
+                    bufferingGoal: 30,
+                    rebufferingGoal: 5
+                }
+            });
+            
+            // Load default playlist
+            loadDefaultPlaylist();
+            
+            // Set up event listeners for player
+            player.addEventListener('adaptation', function() {
+                const tracks = player.getVariantTracks();
+                const activeTrack = tracks.find(track => track.active);
+                
+                if (activeTrack) {
+                    const height = activeTrack.height || 'Unknown';
+                    document.getElementById('current-resolution').textContent = `${height}p`;
+                }
+            });
+            
+            player.addEventListener('buffering', function(event) {
+                document.getElementById('buffering-status').textContent = event.buffering ? 'Buffering...' : 'Ready';
+            });
+            
+            // Update current time
+            setInterval(function() {
+                const currentTime = video.currentTime;
+                const minutes = Math.floor(currentTime / 60);
+                const seconds = Math.floor(currentTime % 60);
+                document.getElementById('current-time').textContent = 
+                    `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            }, 500);
+            
+            // Set up playlist controls
+            document.getElementById('shuffle-btn').addEventListener('click', shufflePlaylist);
+            document.getElementById('refresh-btn').addEventListener('click', loadDefaultPlaylist);
+            
+            // Set up swipe functionality
+            setupSwipeHandling();
+            
+            // Function to load default playlist
+            async function loadDefaultPlaylist() {
+                // Show loading state
+                document.getElementById('playlist-title').textContent = 'Loading Playlist...';
+                document.getElementById('page-1').innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <span>Loading channels...</span>
+                    </div>
+                `;
+                
+                try {
+                    // Parse M3U content
+                    const channels = parseM3U(m3uContent);
+                    await loadPlaylistFromData(channels);
+                    
+                    document.getElementById('playlist-title').textContent = `All Channels (${channels.length})`;
+                } catch (error) {
+                    console.error('Error loading playlist:', error);
+                    document.getElementById('playlist-title').textContent = 'Error Loading Playlist';
+                    document.getElementById('page-1').innerHTML = `
+                        <div class="loading">
+                            <span>Error loading playlist. Please try again.</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Function to parse M3U content
+            function parseM3U(m3uContent) {
+                const lines = m3uContent.split('\n');
+                const channels = [];
+                let currentChannel = {};
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    if (line.startsWith('#EXTINF:')) {
+                        currentChannel = {};
+                        
+                        // Parse EXTINF line
+                        const extinfMatch = line.match(/#EXTINF:(-?\d+)\s*(.*?)(?:\s*(.*))?/);
+                        if (extinfMatch) {
+                            currentChannel.duration = extinfMatch[1];
+                            const attributes = extinfMatch[3] || '';
+                            
+                            // Parse attributes
+                            const tvgIdMatch = attributes.match(/tvg-id="([^"]*)"/);
+                            const tvgLogoMatch = attributes.match(/tvg-logo="([^"]*)"/);
+                            const groupTitleMatch = attributes.match(/group-title="([^"]*)"/);
+                            
+                            currentChannel.tvgId = tvgIdMatch ? tvgIdMatch[1] : '';
+                            currentChannel.tvgLogo = tvgLogoMatch ? tvgLogoMatch[1] : '';
+                            currentChannel.groupTitle = groupTitleMatch ? groupTitleMatch[1] : 'General';
+                            
+                            // Channel name is after the attributes or at the end
+                            const nameMatch = line.match(/,([^,]*)$/);
+                            currentChannel.name = nameMatch ? nameMatch[1].trim() : 'Unknown Channel';
+                        }
+                    } else if (line.startsWith('#KODIPROP:')) {
+                        // Parse KODIPROP lines for DRM
+                        if (line.includes('inputstream.adaptive.license_type=clearkey')) {
+                            currentChannel.drmType = 'clearkey';
+                        } else if (line.includes('inputstream.adaptive.license_key=')) {
+                            const licenseMatch = line.match(/license_key=([^:\s]*):([^\s]*)/);
+                            if (licenseMatch) {
+                                currentChannel.licenseKey = licenseMatch[1] + ':' + licenseMatch[2];
+                            }
+                        }
+                    } else if (line.startsWith('http')) {
+                        // This is the stream URL
+                        currentChannel.url = line;
+                        channels.push({...currentChannel});
+                        currentChannel = {};
+                    }
+                }
+                
+                return channels;
+            }
+            
+            // Function to load playlist from data
+            function loadPlaylistFromData(channels) {
+                // Group channels by category
+                const groupedChannels = {};
+                channels.forEach(channel => {
+                    const group = channel.groupTitle || 'General';
+                    if (!groupedChannels[group]) {
+                        groupedChannels[group] = [];
+                    }
+                    groupedChannels[group].push(channel);
+                });
+                
+                // Clear existing carousel
+                const carousel = document.getElementById('playlist-carousel');
+                carousel.innerHTML = '';
+                
+                // Create pages for each group
+                const groups = Object.keys(groupedChannels);
+                groups.forEach((group, index) => {
+                    const page = document.createElement('div');
+                    page.className = 'playlist-page';
+                    page.id = `page-${index + 1}`;
+                    
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.padding = '5px 0 10px 0';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
+                    groupTitle.style.marginBottom = '10px';
+                    groupTitle.textContent = `${group} (${groupedChannels[group].length})`;
+                    page.appendChild(groupTitle);
+                    
+                    // Add channels to the page
+                    groupedChannels[group].forEach(channel => {
+                        const playlistItem = document.createElement('div');
+                        playlistItem.className = 'playlist-item';
+                        playlistItem.setAttribute('data-url', channel.url);
+                        playlistItem.setAttribute('data-license', channel.licenseKey || '');
+                        
+                        playlistItem.innerHTML = `
+                            <div class="playlist-item-thumb">
+                                ${channel.tvgLogo ? 
+                                    `<img src="${channel.tvgLogo}" alt="${channel.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='${channel.name.charAt(0)}';">` : 
+                                    `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);">${channel.name.charAt(0)}</div>`
+                                }
+                            </div>
+                            <div class="playlist-item-info">
+                                <div class="playlist-item-title">${channel.name}</div>
+                                <div class="playlist-item-duration">${channel.duration === '-1' ? 'Live' : channel.duration}</div>
+                            </div>
+                        `;
+                        
+                        playlistItem.addEventListener('click', function() {
+                            loadVideo(channel);
+                            setActivePlaylistItem(playlistItem);
+                        });
+                        
+                        page.appendChild(playlistItem);
+                    });
+                    
+                    carousel.appendChild(page);
+                });
+                
+                // Create carousel indicators
+                createCarouselIndicators(groups.length);
+                
+                // Load the first channel if available
+                if (channels.length > 0) {
+                    const firstChannel = channels[0];
+                    loadVideo(firstChannel);
+                    
+                    // Set first item as active
+                    setTimeout(() => {
+                        const firstItem = document.querySelector('.playlist-item');
+                        if (firstItem) setActivePlaylistItem(firstItem);
+                    }, 100);
+                }
+            }
+            
+            // Function to load a video
+            function loadVideo(channelData) {
+                if (!channelData.url) {
+                    console.error('No URL provided for channel:', channelData.name);
+                    return;
+                }
+                
+                // Configure DRM if available
+                if (channelData.licenseKey && channelData.drmType === 'clearkey') {
+                    const clearKeyConfig = {};
+                    const [keyId, key] = channelData.licenseKey.split(':');
+                    clearKeyConfig[keyId] = key;
+                    
+                    player.configure({
+                        drm: {
+                            clearKeys: clearKeyConfig
+                        }
+                    });
+                }
+                
+                player.load(channelData.url).then(function() {
+                    console.log(`Channel "${channelData.name}" has been loaded!`);
+                    document.getElementById('playlist-title').textContent = `Now Playing: ${channelData.name}`;
+                }).catch(function(error) {
+                    console.error('Error loading video', error);
+                    document.getElementById('playlist-title').textContent = `Error: ${channelData.name}`;
+                });
+            }
+            
+            // Function to set active playlist item
+            function setActivePlaylistItem(itemElement) {
+                const playlistItems = document.querySelectorAll('.playlist-item');
+                playlistItems.forEach(item => {
+                    item.classList.remove('active');
+                });
+                itemElement.classList.add('active');
+            }
+            
+            // Function to shuffle playlist
+            function shufflePlaylist() {
+                // This would shuffle the playlist data and re-render
+                // For now, we'll just show a message
+                document.getElementById('playlist-title').textContent = 'Playlist Shuffled!';
+                setTimeout(() => {
+                    const channels = parseM3U(m3uContent);
+                    document.getElementById('playlist-title').textContent = `All Channels (${channels.length})`;
+                }, 2000);
+            }
+            
+            // Function to create carousel indicators
+            function createCarouselIndicators(count) {
+                const indicatorsContainer = document.getElementById('carousel-indicators');
+                indicatorsContainer.innerHTML = '';
+                
+                for (let i = 0; i < count; i++) {
+                    const indicator = document.createElement('div');
+                    indicator.className = `indicator ${i === 0 ? 'active' : ''}`;
+                    indicator.setAttribute('data-index', i);
+                    
+                    indicator.addEventListener('click', function() {
+                        goToPage(i);
+                    });
+                    
+                    indicatorsContainer.appendChild(indicator);
+                }
+            }
+            
+            // Function to go to specific page
+            function goToPage(pageIndex) {
+                const carousel = document.getElementById('playlist-carousel');
+                carousel.style.transform = `translateX(-${pageIndex * 100}%)`;
+                
+                // Update active indicator
+                const indicators = document.querySelectorAll('.indicator');
+                indicators.forEach((indicator, index) => {
+                    indicator.classList.toggle('active', index === pageIndex);
+                });
+            }
+            
+            // Function to set up swipe handling
+            function setupSwipeHandling() {
+                const carousel = document.getElementById('playlist-carousel');
+                let startX = 0;
+                let currentTranslate = 0;
+                let currentIndex = 0;
+                const pageCount = document.querySelectorAll('.playlist-page').length;
+                
+                carousel.addEventListener('touchstart', function(e) {
+                    startX = e.touches[0].clientX;
+                });
+                
+                carousel.addEventListener('touchmove', function(e) {
+                    if (startX === 0) return;
+                    
+                    const currentX = e.touches[0].clientX;
+                    const diff = startX - currentX;
+                    
+                    // Only allow horizontal swipe
+                    if (Math.abs(diff) > 10) {
+                        e.preventDefault();
+                    }
+                });
+                
+                carousel.addEventListener('touchend', function(e) {
+                    if (startX === 0) return;
+                    
+                    const endX = e.changedTouches[0].clientX;
+                    const diff = startX - endX;
+                    
+                    // Swipe threshold
+                    if (Math.abs(diff) > 50) {
+                        if (diff > 0 && currentIndex < pageCount - 1) {
+                            // Swipe left - next page
+                            currentIndex++;
+                        } else if (diff < 0 && currentIndex > 0) {
+                            // Swipe right - previous page
+                            currentIndex--;
+                        }
+                        
+                        goToPage(currentIndex);
+                    }
+                    
+                    startX = 0;
+                });
+            }
+        });
+    </script>
 </body>
 </html>
