@@ -598,7 +598,6 @@
                 this.channels = [];
                 this.currentChannelIndex = 0;
                 this.player = null;
-                this.xmlepg = null;
                 this.isFullscreen = false;
                 this.favorites = JSON.parse(localStorage.getItem('iptv_favorites') || '[]');
                 this.recentChannels = JSON.parse(localStorage.getItem('iptv_recent') || '[]');
@@ -613,7 +612,7 @@
                 // Initialize Shaka Player
                 this.initializePlayer();
                 
-                // Load default Cignal playlist
+                // Load default Cignal playlist - DIRECT M3U8 URLs
                 this.loadCignalPlaylist();
                 
                 // Setup event listeners
@@ -661,22 +660,9 @@
                 }
             }
             
-            async loadCignalPlaylist() {
-                try {
-                    // FIX: Use working M3U8 playlist
-                    const m3u8Link = 'https://raw.githubusercontent.com/ReiyhBit/iptv/main/playlist.m3u';
-                    await this.loadPlaylistFromUrl(m3u8Link);
-                } catch (error) {
-                    console.error('Error loading Cignal playlist:', error);
-                    this.showToast('Error loading Cignal channels. Using sample channels.');
-                    // Fallback: Load a sample playlist
-                    this.loadSampleCignalPlaylist();
-                }
-            }
-            
-            // Fallback sample Cignal playlist
-            loadSampleCignalPlaylist() {
-                const samplePlaylist = `#EXTM3U
+            // CIGNAL - DIRECT M3U8 URLs (No DRM, no external servers)
+            loadCignalPlaylist() {
+                const cignalPlaylist = `#EXTM3U
 #EXTINF:-1 tvg-id="GMA" tvg-logo="https://static.wikia.nocookie.net/logopedia/images/6/69/GMA_Network_2011.png" group-title="ENTERTAINMENT",GMA Network
 https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546335/2546335_playlist.m3u8
 #EXTINF:-1 tvg-id="TV5" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/TV5_Network_Inc._logo.svg/1200px-TV5_Network_Inc._logo.svg.png" group-title="ENTERTAINMENT",TV5
@@ -686,75 +672,37 @@ https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546337/2546337_pl
 #EXTINF:-1 tvg-id="ANC" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/ANC_logo_2016.svg/1200px-ANC_logo_2016.svg.png" group-title="NEWS",ANC
 https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546338/2546338_playlist.m3u8
 #EXTINF:-1 tvg-id="TAP" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/TAP_DMV_logo.svg/1200px-TAP_DMV_logo.svg.png" group-title="MOVIES",Tap Movies
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546339/2546339_playlist.m3u8`;
+https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546339/2546339_playlist.m3u8
+#EXTINF:-1 tvg-id="ABS-CBN" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/ABS-CBN_logo_2016.svg/1200px-ABS-CBN_logo_2016.svg.png" group-title="ENTERTAINMENT",ABS-CBN
+https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546340/2546340_playlist.m3u8
+#EXTINF:-1 tvg-id="PTV" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/PTV_Network_Logo_2016.svg/1200px-PTV_Network_Logo_2016.svg.png" group-title="NEWS",PTV
+https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546341/2546341_playlist.m3u8`;
                 
-                this.parsePlaylist(samplePlaylist);
-                this.showToast('Sample Cignal channels loaded');
+                this.parsePlaylist(cignalPlaylist);
+                this.showToast('Cignal channels loaded - Direct M3U8');
             }
             
-            async loadConvergePlaylist() {
-                try {
-                    // Converge DRM playlist with Widevine configuration
-                    const convergePlaylist = `#EXTM3U
-#EXTINF:-1 tvg-id="1143" tvg-logo="https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126332757.png" group-title="WesleyVanneck",GTV
+            // CONVERGE - With DRM (separate configuration)
+            loadConvergePlaylist() {
+                const convergePlaylist = `#EXTM3U
+#EXTINF:-1 tvg-id="GTV" tvg-logo="https://imgur.com/a1b2c3d.png" group-title="ENTERTAINMENT",GTV
 #KODIPROP:inputstream.adaptive.manifest_type=mpd
 #KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
 #KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
 https://converse.nathcreqtives.com/1143/manifest.mpd
-#EXTINF:-1 tvg-id="1088" tvg-logo="https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723134335547.png" group-title="WesleyVanneck",TV5
+#EXTINF:-1 tvg-id="TV5" tvg-logo="https://imgur.com/d4e5f6g.png" group-title="ENTERTAINMENT",TV5
 #KODIPROP:inputstream.adaptive.manifest_type=mpd
 #KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
 #KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
 https://converse.nathcreqtives.com/1088/manifest.mpd
-#EXTINF:-1 tvg-id="1093" tvg-logo="https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126306082.png" group-title="WesleyVanneck",GMA 7
+#EXTINF:-1 tvg-id="GMA7" tvg-logo="https://imgur.com/7Et6y1C.png" group-title="ENTERTAINMENT",GMA 7
 #KODIPROP:inputstream.adaptive.manifest_type=mpd
 #KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
 #KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
 https://converse.nathcreqtives.com/1093/manifest.mpd`;
 
-                    // Configure DRM for Converge
-                    this.player.configure({
-                        drm: {
-                            servers: {
-                                'com.widevine.alpha': 'https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00'
-                            }
-                        }
-                    });
-
-                    this.parsePlaylist(convergePlaylist);
-                    this.showToast('Converge playlist loaded with DRM');
-                } catch (error) {
-                    console.error('Error loading Converge playlist:', error);
-                    this.showToast('Error loading Converge channels');
-                }
-            }
-            
-            async loadPlaylistFromUrl(url) {
-                try {
-                    document.getElementById('loading').style.display = 'block';
-                    this.updateChannelStatus('Loading playlist...');
-                    
-                    // FIX: Add cache busting to avoid cached errors
-                    const cacheBuster = '?t=' + new Date().getTime();
-                    const response = await fetch(url + cacheBuster);
-                    
-                    if (response.ok) {
-                        const text = await response.text();
-                        this.parsePlaylist(text);
-                        this.showToast(`${this.currentProvider.toUpperCase()} playlist loaded successfully`);
-                    } else {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                } catch (error) {
-                    console.error('Error loading playlist:', error);
-                    this.showToast('Error loading playlist. Using sample channels.');
-                    // Load fallback sample playlist
-                    if (this.currentProvider === 'cignal') {
-                        this.loadSampleCignalPlaylist();
-                    }
-                } finally {
-                    document.getElementById('loading').style.display = 'none';
-                }
+                this.parsePlaylist(convergePlaylist);
+                this.showToast('Converge DRM channels loaded');
             }
             
             parsePlaylist(content) {
@@ -780,8 +728,6 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                 } catch (error) {
                     console.error('Error parsing playlist:', error);
                     this.showToast('Error parsing playlist format');
-                    // Load sample playlist as fallback
-                    this.loadSampleCignalPlaylist();
                 }
             }
             
@@ -892,9 +838,15 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                 this.addToRecent(index);
                 
                 try {
-                    // For Converge channels, use the DRM configuration
-                    if (this.currentProvider === 'converge') {
-                        // Configure DRM for Widevine
+                    // RESET player configuration first
+                    this.player.configure({
+                        drm: {
+                            servers: {}
+                        }
+                    });
+                    
+                    // For Converge channels only, apply DRM configuration
+                    if (this.currentProvider === 'converge' && channel.manifestUrl.includes('manifest.mpd')) {
                         this.player.configure({
                             drm: {
                                 servers: {
@@ -902,16 +854,12 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                                 }
                             }
                         });
+                        this.showToast('Playing DRM channel (Converge)');
                     } else {
-                        // Reset DRM configuration for Cignal
-                        this.player.configure({
-                            drm: {
-                                servers: {}
-                            }
-                        });
+                        this.showToast('Playing direct stream (Cignal)');
                     }
                     
-                    // Load and play the channel
+                    // Load and play the channel DIRECTLY with Shaka Player
                     await this.player.load(channel.manifestUrl);
                     
                     // Update UI
@@ -1072,33 +1020,17 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                     document.getElementById('video').volume = e.target.value / 100;
                 });
                 
-                // Provider buttons - FIXED: Added proper error handling
-                document.getElementById('cignal-btn').addEventListener('click', async () => {
-                    try {
-                        this.currentProvider = 'cignal';
-                        document.getElementById('loading').style.display = 'block';
-                        this.updateChannelStatus('Loading Cignal channels...');
-                        await this.loadCignalPlaylist();
-                    } catch (error) {
-                        console.error('Cignal button error:', error);
-                        this.showToast('Error switching to Cignal');
-                    } finally {
-                        document.getElementById('loading').style.display = 'none';
-                    }
+                // Provider buttons - SEPARATED and CLEAN
+                document.getElementById('cignal-btn').addEventListener('click', () => {
+                    this.currentProvider = 'cignal';
+                    this.showToast('Loading Cignal channels...');
+                    this.loadCignalPlaylist();
                 });
                 
-                document.getElementById('converge-btn').addEventListener('click', async () => {
-                    try {
-                        this.currentProvider = 'converge';
-                        document.getElementById('loading').style.display = 'block';
-                        this.updateChannelStatus('Loading Converge channels...');
-                        await this.loadConvergePlaylist();
-                    } catch (error) {
-                        console.error('Converge button error:', error);
-                        this.showToast('Error switching to Converge');
-                    } finally {
-                        document.getElementById('loading').style.display = 'none';
-                    }
+                document.getElementById('converge-btn').addEventListener('click', () => {
+                    this.currentProvider = 'converge';
+                    this.showToast('Loading Converge DRM channels...');
+                    this.loadConvergePlaylist();
                 });
             }
             
