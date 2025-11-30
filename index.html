@@ -598,12 +598,23 @@
                 this.channels = [];
                 this.currentChannelIndex = 0;
                 this.player = null;
+                this.xmlepg = null;
                 this.isFullscreen = false;
                 this.favorites = JSON.parse(localStorage.getItem('iptv_favorites') || '[]');
                 this.recentChannels = JSON.parse(localStorage.getItem('iptv_recent') || '[]');
                 this.categories = {};
                 this.currentCategory = 'all';
                 this.currentProvider = 'cignal'; // Default provider
+                
+                // Converge playlist (from your provided list)
+                this.convergeLicense = "https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00";
+                this.convergeChannels = [
+                    { id: 'conv-1143', channelName: "GTV", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126332757.png", manifestUrl: "https://converse.nathcreqtives.com/1143/manifest.mpd", drm: true },
+                    { id: 'conv-1088', channelName: "TV5", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723134335547.png", manifestUrl: "https://converse.nathcreqtives.com/1088/manifest.mpd", drm: true },
+                    { id: 'conv-1093', channelName: "GMA 7", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126306082.png", manifestUrl: "https://converse.nathcreqtives.com/1093/manifest.mpd", drm: true },
+                    { id: 'conv-1094', channelName: "RPTV", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723133873954.png", manifestUrl: "https://converse.nathcreqtives.com/1094/manifest.mpd", drm: true },
+                    { id: 'conv-1086', channelName: "PTV", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723133792284.png", manifestUrl: "https://converse.nathcreqtives.com/1086/manifest.mpd", drm: true }
+                ];
                 
                 this.initializeApp();
             }
@@ -612,7 +623,7 @@
                 // Initialize Shaka Player
                 this.initializePlayer();
                 
-                // Load default Cignal playlist - DIRECT M3U8 URLs
+                // Load default Cignal playlist
                 this.loadCignalPlaylist();
                 
                 // Setup event listeners
@@ -624,110 +635,98 @@
             }
             
             initializePlayer() {
-                // FIX: Proper Shaka Player initialization
+                this.player = new shaka.Player(document.getElementById('video'));
                 shaka.polyfill.installAll();
                 
-                if (shaka.Player.isBrowserSupported()) {
-                    this.player = new shaka.Player();
-                    this.player.attach(document.getElementById('video'));
+                // Handle player events
+                this.player.addEventListener('loading', () => {
+                    document.getElementById('loading').style.display = 'block';
+                    this.updateChannelStatus('Loading...');
+                });
+                
+                this.player.addEventListener('loaded', () => {
+                    document.getElementById('loading').style.display = 'none';
+                    this.updateChannelStatus('Playing');
                     
-                    // Handle player events
-                    this.player.addEventListener('loading', () => {
-                        document.getElementById('loading').style.display = 'block';
-                        this.updateChannelStatus('Loading...');
+                    // AUTO-PLAY when channel is loaded
+                    document.getElementById('video').play().catch(e => {
+                        console.log('Auto-play prevented by browser:', e);
+                        this.showToast('Tap the video to play');
                     });
+                });
+                
+                this.player.addEventListener('error', (error) => {
+                    document.getElementById('loading').style.display = 'none';
+                    this.updateChannelStatus('Error loading channel');
+                    console.error('Player error:', error);
+                });
+            }
+            
+            async loadCignalPlaylist() {
+                const m3u8Link = 'https://reiyhbit.github.io/iptv/playlist.m3u';
+                await this.loadPlaylistFromUrl(m3u8Link);
+            }
+            
+            async loadConvergePlaylist() {
+                // Switch to Converge channels
+                this.channels = this.convergeChannels;
+                this.currentProvider = 'converge';
+                
+                // Extract categories
+                this.extractCategories();
+                
+                // Update UI
+                this.updateChannelList();
+                this.updateQuickChannels();
+                
+                if (this.channels.length > 0) {
+                    this.playChannel(0);
+                }
+                
+                this.showToast('Converge playlist loaded with DRM');
+            }
+            
+            async loadPlaylistFromUrl(url) {
+                try {
+                    document.getElementById('loading').style.display = 'block';
+                    this.updateChannelStatus('Loading playlist...');
                     
-                    this.player.addEventListener('loaded', () => {
-                        document.getElementById('loading').style.display = 'none';
-                        this.updateChannelStatus('Playing');
-                        
-                        // AUTO-PLAY when channel is loaded
-                        document.getElementById('video').play().catch(e => {
-                            console.log('Auto-play prevented by browser:', e);
-                            this.showToast('Tap the video to play');
-                        });
-                    });
-                    
-                    this.player.addEventListener('error', (error) => {
-                        document.getElementById('loading').style.display = 'none';
-                        this.updateChannelStatus('Error loading channel');
-                        console.error('Player error:', error);
-                        this.showToast('Error loading channel. Please try another.');
-                    });
-                } else {
-                    console.error('Browser not supported!');
-                    this.showToast('Browser not supported for video playback');
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const text = await response.text();
+                        this.parsePlaylist(text);
+                    } else {
+                        this.showToast('Failed to load playlist');
+                    }
+                } catch (error) {
+                    console.error('Error loading playlist:', error);
+                    this.showToast('Error loading playlist');
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
                 }
             }
             
-            // CIGNAL - DIRECT M3U8 URLs (No DRM, no external servers)
-            loadCignalPlaylist() {
-                const cignalPlaylist = `#EXTM3U
-#EXTINF:-1 tvg-id="GMA" tvg-logo="https://static.wikia.nocookie.net/logopedia/images/6/69/GMA_Network_2011.png" group-title="ENTERTAINMENT",GMA Network
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546335/2546335_playlist.m3u8
-#EXTINF:-1 tvg-id="TV5" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/TV5_Network_Inc._logo.svg/1200px-TV5_Network_Inc._logo.svg.png" group-title="ENTERTAINMENT",TV5
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546336/2546336_playlist.m3u8
-#EXTINF:-1 tvg-id="CNN" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/CNN.svg/1200px-CNN.svg.png" group-title="NEWS",CNN Philippines
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546337/2546337_playlist.m3u8
-#EXTINF:-1 tvg-id="ANC" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/ANC_logo_2016.svg/1200px-ANC_logo_2016.svg.png" group-title="NEWS",ANC
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546338/2546338_playlist.m3u8
-#EXTINF:-1 tvg-id="TAP" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/TAP_DMV_logo.svg/1200px-TAP_DMV_logo.svg.png" group-title="MOVIES",Tap Movies
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546339/2546339_playlist.m3u8
-#EXTINF:-1 tvg-id="ABS-CBN" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/ABS-CBN_logo_2016.svg/1200px-ABS-CBN_logo_2016.svg.png" group-title="ENTERTAINMENT",ABS-CBN
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546340/2546340_playlist.m3u8
-#EXTINF:-1 tvg-id="PTV" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/PTV_Network_Logo_2016.svg/1200px-PTV_Network_Logo_2016.svg.png" group-title="NEWS",PTV
-https://d2e1as7ah7763p.cloudfront.net/gannett/wwlp/2022/03/14/2546341/2546341_playlist.m3u8`;
-                
-                this.parsePlaylist(cignalPlaylist);
-                this.showToast('Cignal channels loaded - Direct M3U8');
-            }
-            
-            // CONVERGE - With DRM (separate configuration)
-            loadConvergePlaylist() {
-                const convergePlaylist = `#EXTM3U
-#EXTINF:-1 tvg-id="GTV" tvg-logo="https://imgur.com/a1b2c3d.png" group-title="ENTERTAINMENT",GTV
-#KODIPROP:inputstream.adaptive.manifest_type=mpd
-#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
-#KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
-https://converse.nathcreqtives.com/1143/manifest.mpd
-#EXTINF:-1 tvg-id="TV5" tvg-logo="https://imgur.com/d4e5f6g.png" group-title="ENTERTAINMENT",TV5
-#KODIPROP:inputstream.adaptive.manifest_type=mpd
-#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
-#KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
-https://converse.nathcreqtives.com/1088/manifest.mpd
-#EXTINF:-1 tvg-id="GMA7" tvg-logo="https://imgur.com/7Et6y1C.png" group-title="ENTERTAINMENT",GMA 7
-#KODIPROP:inputstream.adaptive.manifest_type=mpd
-#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
-#KODIPROP:inputstream.adaptive.license_key=https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00
-https://converse.nathcreqtives.com/1093/manifest.mpd`;
-
-                this.parsePlaylist(convergePlaylist);
-                this.showToast('Converge DRM channels loaded');
-            }
-            
             parsePlaylist(content) {
-                try {
-                    const m3u8Interpreter = new M3U8Interpreter(content);
-                    m3u8Interpreter.parse();
-                    this.channels = m3u8Interpreter.getChannels();
-                    
-                    // FIX: Validate that channels were parsed correctly
-                    if (!this.channels || this.channels.length === 0) {
-                        throw new Error('No channels found in playlist');
-                    }
-                    
-                    // Extract categories from channels
-                    this.extractCategories();
-                    
-                    this.updateChannelList();
-                    this.updateQuickChannels();
-                    
-                    if (this.channels.length > 0) {
-                        this.playChannel(0);
-                    }
-                } catch (error) {
-                    console.error('Error parsing playlist:', error);
-                    this.showToast('Error parsing playlist format');
+                const m3u8Interpreter = new M3U8Interpreter(content);
+                m3u8Interpreter.parse();
+                this.channels = m3u8Interpreter.getChannels();
+                
+                // Extract categories from channels
+                this.extractCategories();
+                
+                // Initialize XML EPG if available
+                const urls = m3u8Interpreter.getUrlTvg();
+                if (urls && urls.length > 0) {
+                    this.xmlepg = new XMLEPG();
+                    this.xmlepg.setPlaylistChannels(this.channels);
+                    this.xmlepg.load(urls);
+                }
+                
+                this.updateChannelList();
+                this.updateQuickChannels();
+                
+                if (this.channels.length > 0) {
+                    this.playChannel(0);
                 }
             }
             
@@ -764,11 +763,8 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                 
                 const isFavorite = this.favorites.includes(index);
                 
-                // FIX: Better error handling for channel logos
-                const logoUrl = channel.tvgLogo || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo=';
-                
                 channelItem.innerHTML = `
-                    <img src="${logoUrl}" alt="${channel.channelName}" class="channel-logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo='">
+                    <img src="${channel.tvgLogo}" alt="${channel.channelName}" class="channel-logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo='">
                     <span class="channel-name">${channel.channelName}</span>
                     ${isFavorite ? '<span class="channel-fav"><i class="fas fa-star"></i></span>' : ''}
                 `;
@@ -807,10 +803,9 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                     }
                     
                     const isFavorite = this.favorites.includes(originalIndex);
-                    const logoUrl = channel.tvgLogo || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo=';
                     
                     quickChannel.innerHTML = `
-                        <img src="${logoUrl}" alt="${channel.channelName}" class="channel-logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo='">
+                        <img src="${channel.tvgLogo}" alt="${channel.channelName}" class="channel-logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNjFkYWZiIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VFY8L3RleHQ+Cjwvc3ZnPgo='">
                         <span class="channel-name">${channel.channelName}</span>
                         ${isFavorite ? '<span class="channel-fav"><i class="fas fa-star"></i></span>' : ''}
                     `;
@@ -838,28 +833,22 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                 this.addToRecent(index);
                 
                 try {
-                    // RESET player configuration first
-                    this.player.configure({
-                        drm: {
-                            servers: {}
-                        }
-                    });
-                    
-                    // For Converge channels only, apply DRM configuration
-                    if (this.currentProvider === 'converge' && channel.manifestUrl.includes('manifest.mpd')) {
+                    // For Converge channels, use the DRM configuration
+                    if (this.currentProvider === 'converge' && channel.drm) {
+                        // Configure DRM for Widevine
                         this.player.configure({
                             drm: {
                                 servers: {
-                                    'com.widevine.alpha': 'https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00'
+                                    'com.widevine.alpha': this.convergeLicense
                                 }
                             }
                         });
-                        this.showToast('Playing DRM channel (Converge)');
                     } else {
-                        this.showToast('Playing direct stream (Cignal)');
+                        // Reset DRM configuration for non-DRM channels
+                        this.player.configure({ drm: { servers: {} } });
                     }
                     
-                    // Load and play the channel DIRECTLY with Shaka Player
+                    // Load and play the channel
                     await this.player.load(channel.manifestUrl);
                     
                     // Update UI
@@ -871,14 +860,8 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                     
                 } catch (error) {
                     console.error('Error playing channel:', error);
-                    this.showToast('Error playing channel. Trying next channel...');
+                    this.showToast('Error playing channel');
                     this.updateChannelStatus('Error');
-                    
-                    // Try next channel if current fails
-                    const nextIndex = (index + 1) % this.channels.length;
-                    if (nextIndex !== index) {
-                        setTimeout(() => this.playChannel(nextIndex), 2000);
-                    }
                 }
             }
             
@@ -1020,17 +1003,17 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
                     document.getElementById('video').volume = e.target.value / 100;
                 });
                 
-                // Provider buttons - SEPARATED and CLEAN
+                // Provider buttons
                 document.getElementById('cignal-btn').addEventListener('click', () => {
                     this.currentProvider = 'cignal';
-                    this.showToast('Loading Cignal channels...');
                     this.loadCignalPlaylist();
+                    this.showToast('Loading Cignal channels...');
                 });
                 
                 document.getElementById('converge-btn').addEventListener('click', () => {
                     this.currentProvider = 'converge';
-                    this.showToast('Loading Converge DRM channels...');
                     this.loadConvergePlaylist();
+                    this.showToast('Loading Converge DRM channels...');
                 });
             }
             
@@ -1057,23 +1040,14 @@ https://converse.nathcreqtives.com/1093/manifest.mpd`;
             }
             
             showToast(message) {
-                // Remove existing toasts
-                document.querySelectorAll('.toast').forEach(toast => toast.remove());
-                
                 const toast = document.createElement('div');
                 toast.className = 'toast';
                 toast.textContent = message;
                 document.body.appendChild(toast);
                 
                 setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.remove();
-                    }
+                    toast.remove();
                 }, 3000);
-            }
-            
-            hideChannelList() {
-                document.getElementById('channel-overlay').style.display = 'none';
             }
         }
         
