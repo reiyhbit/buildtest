@@ -173,8 +173,9 @@
             box-shadow: 0 4px 8px rgba(97, 218, 251, 0.3);
         }
         
-        .provider-btn:active {
+        .provider-btn.active {
             transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         /* Quick channels - LAHAT NG CHANNELS NA! */
@@ -505,7 +506,7 @@
             
             <!-- Provider Buttons - Cignal and Converge -->
             <div id="provider-buttons">
-                <button class="provider-btn" id="cignal-btn">
+                <button class="provider-btn active" id="cignal-btn">
                     <i class="fas fa-satellite-dish"></i>
                     Cignal
                 </button>
@@ -638,6 +639,13 @@
                 this.player = new shaka.Player(document.getElementById('video'));
                 shaka.polyfill.installAll();
                 
+                // Set default configuration for non-DRM content
+                this.player.configure({
+                    drm: {
+                        servers: {} // Empty by default for Cignal
+                    }
+                });
+                
                 // Handle player events
                 this.player.addEventListener('loading', () => {
                     document.getElementById('loading').style.display = 'block';
@@ -659,12 +667,16 @@
                     document.getElementById('loading').style.display = 'none';
                     this.updateChannelStatus('Error loading channel');
                     console.error('Player error:', error);
+                    this.showToast('Error loading channel: ' + error.detail.message);
                 });
             }
             
             async loadCignalPlaylist() {
                 const m3u8Link = 'https://reiyhbit.github.io/iptv/playlist.m3u';
                 await this.loadPlaylistFromUrl(m3u8Link);
+                
+                // Update provider button states
+                this.updateProviderButtons();
             }
             
             async loadConvergePlaylist() {
@@ -678,6 +690,9 @@
                 // Update UI
                 this.updateChannelList();
                 this.updateQuickChannels();
+                
+                // Update provider button states
+                this.updateProviderButtons();
                 
                 if (this.channels.length > 0) {
                     this.playChannel(0);
@@ -742,6 +757,19 @@
                         this.categories[channel.groupTitle] = this.channels.filter(c => c.groupTitle === channel.groupTitle);
                     }
                 });
+            }
+            
+            updateProviderButtons() {
+                const cignalBtn = document.getElementById('cignal-btn');
+                const convergeBtn = document.getElementById('converge-btn');
+                
+                if (this.currentProvider === 'cignal') {
+                    cignalBtn.classList.add('active');
+                    convergeBtn.classList.remove('active');
+                } else {
+                    cignalBtn.classList.remove('active');
+                    convergeBtn.classList.add('active');
+                }
             }
             
             updateChannelList() {
@@ -833,9 +861,16 @@
                 this.addToRecent(index);
                 
                 try {
-                    // For Converge channels, use the DRM configuration
+                    // RESET player configuration first
+                    this.player.configure({
+                        drm: {
+                            servers: {} // Clear any existing DRM servers
+                        }
+                    });
+                    
+                    // For Converge channels only, apply DRM configuration
                     if (this.currentProvider === 'converge' && channel.drm) {
-                        // Configure DRM for Widevine
+                        console.log('Applying DRM configuration for Converge channel');
                         this.player.configure({
                             drm: {
                                 servers: {
@@ -844,8 +879,7 @@
                             }
                         });
                     } else {
-                        // Reset DRM configuration for non-DRM channels
-                        this.player.configure({ drm: { servers: {} } });
+                        console.log('Playing non-DRM channel, DRM servers cleared');
                     }
                     
                     // Load and play the channel
@@ -860,7 +894,7 @@
                     
                 } catch (error) {
                     console.error('Error playing channel:', error);
-                    this.showToast('Error playing channel');
+                    this.showToast('Error playing channel: ' + error.message);
                     this.updateChannelStatus('Error');
                 }
             }
