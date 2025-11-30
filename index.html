@@ -97,7 +97,7 @@
 
             <div id="provider-buttons">
                 <button class="provider-btn" id="cignal-btn"><i class="fas fa-satellite-dish"></i> Cignal</button>
-                <button class="provider-btn" id="converge-btn"><i class="fas fa-bolt"></i> Converge</button>
+                <a href="https://reiyhbit.github.io/shaka2/" class="provider-btn" id="converge-btn" style="text-decoration: none;"><i class="fas fa-bolt"></i> Converge</a>
             </div>
 
             <div id="quick-channels"></div>
@@ -164,7 +164,9 @@
                 // Converge playlist (from your provided list)
                 this.convergeLicense = "https://key.nathcreqtives.com/widevine/?deviceId=02:00:00:00:00:00";
                 this.convergeChannels = [
-                    
+                    { id: 'conv-1143', channelName: "GTV", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126332757.png", manifestUrl: "https://converse.nathcreqtives.com/1143/manifest.mpd", drm: true },
+                    { id: 'conv-1088', channelName: "TV5", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723134335547.png", manifestUrl: "https://converse.nathcreqtives.com/1088/manifest.mpd", drm: true },
+                    { id: 'conv-1093', channelName: "GMA 7", tvgLogo: "https://ottepg8.comclark.com:8443/iptvepg/images/markurl/mark_1723126306082.png", manifestUrl: "https://converse.nathcreqtives.com/1093/manifest.mpd", drm: true }
                 ];
 
                 this.initializeApp();
@@ -583,14 +585,16 @@
                 document.getElementById('close-settings').addEventListener('click', () => this.hideSettings());
                 document.getElementById('volume-slider').addEventListener('input', (e) => { document.getElementById('video').volume = e.target.value / 100; });
 
-                // Cignal button - redirect in same tab
                 document.getElementById('cignal-btn').addEventListener('click', () => {
-                    window.location.href = 'https://reiyhbit.github.io/buildtest/';
+                    this.currentCategory = 'all';
+                    this.updateQuickChannels();
+                    this.showToast('Showing all channels');
                 });
 
-                // Converge button - redirect in same tab
-                document.getElementById('converge-btn').addEventListener('click', () => {
-                    window.location.href = 'https://reiyhbit.github.io/shaka2/';
+                // Converge button - redirect to your Shaka player
+                document.getElementById('converge-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.open('https://reiyhbit.github.io/shaka2/', '_blank');
                 });
 
                 document.getElementById('close-channels').addEventListener('click', () => this.hideChannelList());
